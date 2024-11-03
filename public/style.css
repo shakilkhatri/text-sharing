@@ -132,6 +132,8 @@ textarea:focus {
   padding: 0;
   margin: 0;
   padding-top: 10px;
+  display: flex;
+  flex-direction: column-reverse;
 }
 
 #historyList li {

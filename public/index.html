@@ -73,9 +73,8 @@
             try {
                 const response = await fetch('/api/perm');
                 const data = await response.json();
-                const arrayReverse = data.perm.reverse()
                 historyList.innerHTML = '';
-                arrayReverse.forEach((text, index) => {
+                data.perm.forEach((text, index) => {
                     const li = document.createElement('li');
                     // Truncate text if too long
                     const truncatedText = text.length > 50 ? text.substring(0, 47) + '...' : text;
