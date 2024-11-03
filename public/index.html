@@ -24,6 +24,9 @@
           <div id="errorMessage" class="message error">
             × Error sharing text. Please try again.
           </div>
+          <div id="errorNoDataMsg" class="message error">
+            × Failed to load text.
+          </div>
           <textarea
             id="textInput"
             placeholder="Type or paste your text here..."
@@ -47,6 +50,7 @@
       const textSharedMsg = document.getElementById("textSharedMsg");
       const textCopiedMsg = document.getElementById("textCopiedMsg");
       const errorMessage = document.getElementById("errorMessage");
+      const errorNoDataMsg = document.getElementById("errorNoDataMsg");
       const historyList = document.getElementById("historyList");
 
       // Show message function
@@ -65,11 +69,11 @@
           let data;
 
           while (currentTry < maxRetries) {
-            const response = await fetch("/api/temp");
+            const response = await fetch("/api/perm");
             data = await response.json();
 
-            if (data.temp !== "") {
-              textInput.value = data.temp;
+            if (data.perm.length !== 0) {
+              textInput.value = data.perm.slice(-1)[0];
               const event = new Event("input");
               textInput.dispatchEvent(event);
               break; // Exit the loop if we got non-empty data
@@ -82,7 +86,7 @@
             }
           }
 
-          if (data.temp === "") {
+          if (data.perm.length === 0) {
             throw new Error("Failed to load text after multiple attempts");
           }
         } catch (err) {
@@ -94,8 +98,32 @@
       // Load history from server
       async function loadHistory() {
         try {
-          const response = await fetch("/api/perm");
-          const data = await response.json();
+          let maxRetries = 5;
+          let currentTry = 0;
+          let data;
+
+          while (currentTry < maxRetries) {
+            const response = await fetch("/api/perm");
+            data = await response.json();
+
+            if (data.perm.length !== 0) {
+              textInput.value = data.perm.slice(-1)[0];
+              const event = new Event("input");
+              textInput.dispatchEvent(event);
+              break; // Exit the loop if we got non-empty data
+            }
+
+            currentTry++;
+            if (currentTry < maxRetries) {
+              // Wait for a short delay before retrying (e.g., 1 second)
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+          }
+
+          if (data.perm.length === 0) {
+            throw new Error("Failed to load text after multiple attempts");
+          }
+          
           historyList.innerHTML = "";
           data.perm.forEach((text, index) => {
             const li = document.createElement("li");
@@ -130,42 +158,14 @@
           });
         } catch (err) {
           console.error("Failed to load history:", err);
-          showMessage(errorMessage);
+          showMessage(errorNoDataMsg);
         }
       }
-
-      // Save text to server whenever it changes
-      let saveTimeout;
-      textInput.addEventListener("input", () => {
-        // Debounce the save operation
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(async () => {
-          try {
-            await fetch("/api/temp", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ value: textInput.value }),
-            });
-          } catch (err) {
-            console.error("Failed to save text:", err);
-            showMessage(errorMessage);
-          }
-        }, 500);
-      });
 
       // Share button handler
       shareButton.addEventListener("click", async () => {
         try {
           // Save to history
-          await fetch("/api/temp", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ value: textInput.value }),
-          });
 
           await fetch("/api/perm", {
             method: "POST",
