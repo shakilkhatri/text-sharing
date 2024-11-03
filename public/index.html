@@ -106,6 +106,8 @@
             const response = await fetch("/api/perm");
             data = await response.json();
 
+            console.log(data);
+            
             if (data.perm.length !== 0) {
               textInput.value = data.perm.slice(-1)[0];
               const event = new Event("input");
@@ -123,7 +125,7 @@
           if (data.perm.length === 0) {
             throw new Error("Failed to load text after multiple attempts");
           }
-          
+
           historyList.innerHTML = "";
           data.perm.forEach((text, index) => {
             const li = document.createElement("li");
@@ -186,7 +188,6 @@
 
       // Initialize
       window.addEventListener("load", () => {
-        loadCurrentText();
         loadHistory();
       });
     </script>
