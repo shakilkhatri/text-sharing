@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextShare</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>TextShare</h1>
+            <p>Share text across your devices instantly</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div id="textCopiedMsg" class="message success">
+                    ✓ Text copied to clipboard!
+                </div>
+                <div id="textSharedMsg" class="message success">
+                    ✓ Text successfully shared!
+                </div>
+                <div id="errorMessage" class="message error">
+                    × Error sharing text. Please try again.
+                </div>
+                <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
+                <button id="shareButton" class="button">Share Text</button>
+                <div id="history" class="history">
+                    <h3>Previously Shared Texts</h3>
+                    <ul id="historyList"></ul>
+                </div>
+            </div>
+            <small class="note">NOTE: The data is stored temporarily and is intended for sharing purposes only, not for long-term storage.</small>
+        </main>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const shareButton = document.getElementById('shareButton');
+        const textSharedMsg = document.getElementById('textSharedMsg');
+        const textCopiedMsg = document.getElementById('textCopiedMsg');
+        const errorMessage = document.getElementById('errorMessage');
+        const historyList = document.getElementById('historyList');
+
+        // Show message function
+        function showMessage(element, duration = 3000) {
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, duration);
+        }
+
+        // Load text from server on page load
+        async function loadCurrentText() {
+            try {
+                const response = await fetch('/api/temp');
+                const data = await response.json();
+                if (data.temp) {
+                    textInput.value = data.temp;
+                    // Trigger auto-resize
+                    const event = new Event('input');
+                    textInput.dispatchEvent(event);
+                }
+            } catch (err) {
+                console.error('Failed to load text:', err);
+                showMessage(errorMessage);
+            }
+        }
+
+        // Load history from server
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/perm');
+                const data = await response.json();
+                const arrayReverse = data.perm.reverse()
+                historyList.innerHTML = '';
+                arrayReverse.forEach((text, index) => {
+                    const li = document.createElement('li');
+                    // Truncate text if too long
+                    const truncatedText = text.length > 50 ? text.substring(0, 47) + '...' : text;
+                    li.textContent = truncatedText;
+                    
+                    // Add click handler to load text into input
+                    li.addEventListener('click', async () => {
+                        await navigator.clipboard.writeText(text);
+                        showMessage(textCopiedMsg)
+                    });
+                    
+                    // Add delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '×';
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await fetch(`/api/perm/${index}`, { method: 'DELETE' });
+                            loadHistory();
+                        } catch (err) {
+                            console.error('Failed to delete history item:', err);
+                            showMessage(errorMessage);
+                        }
+                    });
+                    
+                    li.appendChild(deleteBtn);
+                    historyList.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Failed to load history:', err);
+                showMessage(errorMessage);
+            }
+        }
+
+        // Save text to server whenever it changes
+        let saveTimeout;
+        textInput.addEventListener('input', () => {
+            
+            // Debounce the save operation
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                try {
+                    await fetch('/api/temp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ value: textInput.value })
+                    });
+                } catch (err) {
+                    console.error('Failed to save text:', err);
+                    showMessage(errorMessage);
+                }
+            }, 500);
+        });
+
+        // Share button handler
+        shareButton.addEventListener('click', async () => {
+            try {            
+                // Save to history
+                await fetch('/api/perm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ value: textInput.value })
+                });
+                
+                showMessage(textSharedMsg);
+                loadHistory(); // Reload history
+            } catch (err) {
+                showMessage(errorMessage);
+                console.error('Failed to share text:', err);
+            }
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            loadCurrentText();
+            loadHistory();
+        });
+    </script>
+
+</body>
+</html>
