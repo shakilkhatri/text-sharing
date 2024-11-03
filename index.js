@@ -8,8 +8,8 @@ app.use(express.urlencoded({ extended: true }));  // for parsing application/x-w
 app.use(express.static(path.join(__dirname, "public")));
 
 // Variables to store data
-let temp = "initial temperature";
-let perm = ["first", "second", "third"];
+let temp = "";
+let perm = [];
 
 // Serve static files
 app.get("/", (req, res) => {
